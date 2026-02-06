@@ -2,18 +2,18 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 
+// ⚠️ REPLACE THIS WITH YOUR ACTUAL RENDER BACKEND URL
+const BACKEND_URL = "https://flight-system-backend.onrender.com"; 
+
 const FlightBoard = () => {
   const [flights, setFlights] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    // 1. Reference the 'flights' collection
     const flightsRef = collection(db, 'flights');
-    
-    // 2. Create a query (optional: order by code)
     const q = query(flightsRef, orderBy('code'));
 
-    // 3. LISTEN for real-time updates
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const flightsData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -23,17 +23,47 @@ const FlightBoard = () => {
       setLoading(false);
     });
 
-    // 4. Cleanup listener when component unmounts
     return () => unsubscribe();
   }, []);
 
-  if (loading) return <div style={{ color: 'white' }}>Loading Flight Data...</div>;
+  // NEW: Function to call your backend
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      await fetch(`${BACKEND_URL}/api/refresh-flights`, { method: 'POST' });
+      console.log("Sync requested!");
+    } catch (error) {
+      console.error("Sync failed:", error);
+      alert("Failed to sync data. Check console.");
+    }
+    setSyncing(false);
+  };
+
+  if (loading) return <div style={{ color: 'white', padding: '20px' }}>Loading Flight Data...</div>;
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-      <h2 style={{ color: '#fff', borderBottom: '2px solid #00f2ff', paddingBottom: '10px' }}>
-        DEPARTURES
-      </h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2 style={{ color: '#fff', margin: 0 }}>DEPARTURES</h2>
+        
+        {/* SYNC BUTTON */}
+        <button 
+          onClick={handleSync} 
+          disabled={syncing}
+          style={{
+            background: syncing ? '#555' : '#00f2ff',
+            color: syncing ? '#ccc' : '#000',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '4px',
+            fontWeight: 'bold',
+            cursor: syncing ? 'not-allowed' : 'pointer',
+            transition: '0.3s'
+          }}
+        >
+          {syncing ? '🔄 SYNCING...' : '🔄 SYNC REAL DATA'}
+        </button>
+      </div>
       
       <div style={{ display: 'grid', gap: '10px' }}>
         {flights.map((flight) => (
@@ -52,7 +82,8 @@ const FlightBoard = () => {
             <span style={{ 
               color: getStatusColor(flight.status), 
               fontWeight: 'bold',
-              textTransform: 'uppercase'
+              textTransform: 'uppercase',
+              fontSize: '0.9em'
             }}>
               {flight.status}
             </span>
@@ -64,15 +95,13 @@ const FlightBoard = () => {
   );
 };
 
-// Helper function for colors
 const getStatusColor = (status) => {
-  switch (status) {
-    case 'On Time': return '#28a745'; // Green
-    case 'Delayed': return '#dc3545'; // Red
-    case 'Boarding': return '#ffc107'; // Yellow
-    case 'Departed': return '#6c757d'; // Grey
-    default: return '#ffffff';
-  }
+  const s = status.toLowerCase();
+  if (s.includes('on time') || s.includes('landed') || s.includes('active')) return '#28a745'; // Green
+  if (s.includes('delayed')) return '#dc3545'; // Red
+  if (s.includes('boarding')) return '#ffc107'; // Yellow
+  if (s.includes('scheduled')) return '#17a2b8'; // Blue
+  return '#6c757d'; // Grey
 };
 
 export default FlightBoard;
