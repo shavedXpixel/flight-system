@@ -12,13 +12,10 @@ const FlightBoard = () => {
 
   useEffect(() => {
     const flightsRef = collection(db, 'flights');
-    const q = query(flightsRef, orderBy('updatedAt', 'desc')); // Show newest first
+    const q = query(flightsRef, orderBy('updatedAt', 'desc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const flightsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const flightsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setFlights(flightsData);
       setLoading(false);
     });
@@ -41,13 +38,59 @@ const FlightBoard = () => {
   return (
     <div style={{ width: '100%', maxWidth: '1000px' }}>
       
+      {/* CSS FOR RESPONSIVE LAYOUT */}
+      <style>{`
+        /* DEFAULT (DESKTOP) - TABLE LAYOUT */
+        .flight-row {
+          display: grid;
+          grid-template-columns: 0.8fr 2fr 2fr 1fr 0.5fr; /* 5 Columns */
+          padding: 20px 25px;
+          align-items: center;
+          gap: 10px;
+        }
+        
+        .header-row {
+          display: grid;
+        }
+
+        /* MOBILE LAYOUT (Phones < 768px) - CARD LAYOUT */
+        @media (max-width: 768px) {
+          .header-row { display: none !important; } /* Hide Table Headers on Mobile */
+          
+          .flight-row {
+            display: flex;           /* Stack vertically */
+            flex-direction: column;
+            padding: 15px;
+            gap: 8px;
+            position: relative;      /* For absolute positioning items */
+          }
+          
+          /* Mobile Font Adjustments */
+          .flight-code { font-size: 1.4rem !important; }
+          .flight-dest { font-size: 1.1rem !important; color: white !important; }
+          .flight-airline { font-size: 0.9rem !important; opacity: 0.7; }
+          
+          /* Move Status and Gate to top right for compact look */
+          .flight-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-top: 5px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 8px;
+          }
+        }
+      `}</style>
+
       {/* TOOLBAR */}
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
         marginBottom: '20px',
-        padding: '0 10px'
+        flexWrap: 'wrap', // Allow wrapping on very small screens
+        gap: '10px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '10px', height: '10px', background: '#00f2ff', borderRadius: '50%', boxShadow: '0 0 10px #00f2ff' }}></div>
@@ -60,24 +103,22 @@ const FlightBoard = () => {
           className="glass-panel"
           style={{
             color: syncing ? '#888' : '#00f2ff',
-            padding: '12px 24px',
-            borderRadius: '30px', // Pill shape
+            padding: '10px 20px',
+            borderRadius: '30px',
             fontWeight: 'bold',
             cursor: syncing ? 'wait' : 'pointer',
             border: '1px solid rgba(0, 242, 255, 0.3)',
-            transition: 'all 0.3s ease',
-            textTransform: 'uppercase',
-            letterSpacing: '1px'
+            fontSize: '0.8rem',
+            whiteSpace: 'nowrap' // Prevent text wrap button
           }}
         >
-          {syncing ? 'CONNECTING SATELLITE...' : '↻ REFRESH DATA'}
+          {syncing ? 'CONNECTING...' : '↻ SYNC'}
         </button>
       </div>
       
-      {/* TABLE HEADER (Desktop Only) */}
-      <div className="glass-panel" style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '1fr 2fr 2fr 1fr 1fr',
+      {/* TABLE HEADER (Hidden on Mobile via CSS) */}
+      <div className="glass-panel header-row" style={{ 
+        gridTemplateColumns: '0.8fr 2fr 2fr 1fr 0.5fr',
         padding: '15px 25px',
         borderBottom: '1px solid rgba(255,255,255,0.1)',
         color: '#8892b0',
@@ -85,7 +126,8 @@ const FlightBoard = () => {
         fontSize: '0.8rem',
         letterSpacing: '1px',
         borderTopLeftRadius: '12px',
-        borderTopRightRadius: '12px'
+        borderTopRightRadius: '12px',
+        gap: '10px'
       }}>
         <span>FLIGHT</span>
         <span>AIRLINE</span>
@@ -95,36 +137,46 @@ const FlightBoard = () => {
       </div>
 
       {/* FLIGHT LIST */}
-      <div style={{ display: 'grid', gap: '4px' }}>
+      <div style={{ display: 'grid', gap: '8px' }}>
         {flights.map((flight) => (
-          <div key={flight.id} className="glass-panel" style={{
-            display: 'grid', 
-            gridTemplateColumns: '1fr 2fr 2fr 1fr 1fr',
-            padding: '20px 25px',
-            alignItems: 'center',
+          <div key={flight.id} className="glass-panel flight-row" style={{
             transition: 'transform 0.2s',
             borderLeft: `4px solid ${getStatusColor(flight.status)}`
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-          >
-            <strong className="neon-text" style={{ fontSize: '1.1rem' }}>{flight.code}</strong>
-            <span style={{ color: '#eee' }}>{flight.airline}</span>
-            <span style={{ color: '#fff', fontWeight: '500' }}>{flight.destination}</span>
-            <span style={{ 
-              color: getStatusColor(flight.status), 
-              fontWeight: 'bold',
-              textTransform: 'uppercase',
-              fontSize: '0.85rem',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              background: `${getStatusColor(flight.status)}20`, // 20% opacity background
-              textAlign: 'center',
-              width: 'fit-content'
-            }}>
-              {flight.status}
-            </span>
-            <span style={{ color: '#fff', textAlign: 'right', fontWeight: 'bold' }}>{flight.gate}</span>
+          }}>
+            {/* ROW 1: Code & Airline (Mobile: Stacked) */}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+               <strong className="neon-text flight-code" style={{ fontSize: '1.1rem' }}>{flight.code}</strong>
+               <span className="flight-airline" style={{ color: '#eee', fontSize: '0.9rem' }}>{flight.airline}</span>
+            </div>
+
+            {/* ROW 2: Destination */}
+            <span className="flight-dest" style={{ color: '#fff', fontWeight: '500' }}>{flight.destination}</span>
+
+            {/* ROW 3: Meta Data (Desktop: Grid Columns / Mobile: Flex Row at bottom) */}
+            
+            {/* Wrapper for Mobile to group Status/Gate at bottom */}
+            <div className="flight-meta" style={{ display: 'contents' }}> 
+                <span style={{ 
+                  color: getStatusColor(flight.status), 
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  fontSize: '0.75rem',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  background: `${getStatusColor(flight.status)}20`,
+                  textAlign: 'center',
+                  width: 'fit-content',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {flight.status}
+                </span>
+                
+                <span style={{ color: '#fff', textAlign: 'right', fontWeight: 'bold' }}>
+                  <span style={{ color: '#888', fontSize: '0.7rem', marginRight: '5px' }}>GATE</span>
+                  {flight.gate}
+                </span>
+            </div>
+
           </div>
         ))}
       </div>
@@ -134,12 +186,11 @@ const FlightBoard = () => {
 
 const getStatusColor = (status) => {
   const s = status.toLowerCase();
-  if (s.includes('active') || s.includes('landed') || s.includes('scheduled')) return '#00f2ff'; // Cyan
-  if (s.includes('delayed')) return '#ff0055'; // Neon Red
-  if (s.includes('cancelled')) return '#ff0055'; // Neon Red
-  if (s.includes('incident')) return '#ff0055'; // Neon Red
-  if (s.includes('diverted')) return '#ffb700'; // Neon Orange
-  return '#8892b0'; // Muted Blue
+  if (s.includes('active') || s.includes('landed') || s.includes('scheduled')) return '#00f2ff';
+  if (s.includes('delayed')) return '#ff0055';
+  if (s.includes('cancelled')) return '#ff0055'; 
+  if (s.includes('diverted')) return '#ffb700';
+  return '#8892b0';
 };
 
 export default FlightBoard;
