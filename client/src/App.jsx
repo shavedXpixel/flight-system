@@ -3,20 +3,32 @@ import FlightBoard from './components/FlightBoard';
 function App() {
   return (
     <div style={{ 
-      minHeight: '100vh', 
-      backgroundColor: '#0f172a', // Dark Navy Background
-      padding: '40px',
-      fontFamily: "'Courier New', Courier, monospace" // Airport board vibe
+      minHeight: '100vh',
+      padding: '40px 20px',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center'
     }}>
-      <h1 style={{ 
+      {/* HEADER */}
+      <header style={{ 
         textAlign: 'center', 
-        color: 'white', 
-        marginBottom: '40px',
-        letterSpacing: '2px'
+        marginBottom: '50px',
+        animation: 'fadeIn 1s ease-in'
       }}>
-        ✈️ FLIGHT MANAGEMENT SYSTEM
-      </h1>
+        <h1 className="neon-text" style={{ 
+          fontSize: '2.5rem', 
+          margin: 0, 
+          letterSpacing: '4px',
+          textTransform: 'uppercase'
+        }}>
+          ✈️ SKY LINK
+        </h1>
+        <p style={{ color: '#8892b0', marginTop: '10px', letterSpacing: '1px' }}>
+          Live Global Flight Telemetry
+        </p>
+      </header>
       
+      {/* MAIN BOARD */}
       <FlightBoard />
     </div>
   )
