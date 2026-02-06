@@ -1,58 +1,90 @@
 :root {
   font-family: 'Roboto Mono', 'Courier New', monospace;
-  line-height: 1.5;
-  font-weight: 400;
   color-scheme: dark;
 }
 
-/* 1. RESET & FULL SCREEN FIX */
+/* 1. DEEP SPACE BACKGROUND + NEBULA GLOW */
 body, html {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
-  box-sizing: border-box;
-  overflow-x: hidden; /* Prevents horizontal scrollbar */
+  overflow-x: hidden;
+  background-color: #050505;
+  /* Adds a subtle blue glow in the center bottom to backlight the app */
+  background-image: 
+    radial-gradient(circle at 50% 100%, #1a2c4e 0%, #000000 70%),
+    radial-gradient(circle at 80% 20%, rgba(0, 242, 255, 0.05) 0%, transparent 20%);
+  color: #fff;
 }
 
-/* 2. MESMERIZING BACKGROUND */
-body {
-  background: linear-gradient(-45deg, #050a14, #0f172a, #1a1a2e, #000000);
-  background-size: 400% 400%;
-  animation: gradientBG 15s ease infinite;
-  color: #ffffff;
-  min-height: 100vh;
+/* 2. BRIGHTER STAR ENGINE */
+#stars {
+  width: 1px; height: 1px;
+  background: transparent;
+  box-shadow: 174px 500px #FFF, 120px 800px #FFF, 1800px 200px #FFF, 
+              1500px 600px #FFF, 300px 300px #FFF, 800px 100px #FFF, 
+              50px 900px #FFF, 1100px 400px #FFF, 200px 100px #FFF; 
+  animation: animStar 40s linear infinite; /* Faster speed */
+  opacity: 0.8; /* Brighter */
+}
+#stars:after {
+  content: " ";
+  position: absolute;
+  top: 2000px; 
+  width: 1px; height: 1px;
+  background: transparent;
+  box-shadow: 174px 500px #FFF, 120px 800px #FFF, 1800px 200px #FFF, 
+              1500px 600px #FFF, 300px 300px #FFF, 800px 100px #FFF, 
+              50px 900px #FFF, 1100px 400px #FFF, 200px 100px #FFF;
 }
 
-/* 3. SMOOTH BACKGROUND ANIMATION */
-@keyframes gradientBG {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+#stars2 {
+  width: 2px; height: 2px;
+  background: transparent;
+  box-shadow: 100px 200px #FFF, 400px 600px #FFF, 1200px 100px #FFF;
+  animation: animStar 80s linear infinite;
+  opacity: 0.6;
+}
+#stars2:after {
+  content: " "; position: absolute; top: 2000px;
+  width: 2px; height: 2px;
+  background: transparent;
+  box-shadow: 100px 200px #FFF, 400px 600px #FFF, 1200px 100px #FFF;
 }
 
-/* 4. SCROLLBAR STYLING */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #0f172a; 
-}
-::-webkit-scrollbar-thumb {
-  background: #00f2ff; 
-  border-radius: 4px;
+/* 3. SHOOTING STARS (More frequent) */
+.shooting-star {
+  position: absolute;
+  top: 50%; left: 50%;
+  height: 2px;
+  background: linear-gradient(-45deg, #00f2ff, rgba(0, 0, 255, 0));
+  filter: drop-shadow(0 0 6px #00f2ff);
+  animation: tail 4000ms ease-in-out infinite, shooting 4000ms ease-in-out infinite;
+  opacity: 0;
 }
 
-/* 5. UTILITY CLASSES */
+/* 4. UTILITY ANIMATIONS */
+@keyframes animStar { from { transform: translateY(0px); } to { transform: translateY(-2000px); } }
+@keyframes tail { 0% { width: 0; } 30% { width: 100px; } 100% { width: 0; } }
+@keyframes shooting { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(300px); opacity: 0; } }
+
+/* 5. GLASS PANEL (Premium Polish) */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  background: rgba(13, 20, 35, 0.7); /* Darker for better contrast */
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 242, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
 }
 
 .neon-text {
   color: #00f2ff;
-  text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+  text-shadow: 0 0 10px rgba(0, 242, 255, 0.5), 0 0 20px rgba(0, 242, 255, 0.3);
 }
+
+/* Scrollbar Polish */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #050505; }
+::-webkit-scrollbar-thumb { background: #1f4068; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #00f2ff; }

@@ -4,26 +4,20 @@ const admin = require('firebase-admin');
 const axios = require('axios'); 
 require('dotenv').config();
 
-// 1. Setup Firebase Admin (Cloud Compatible)
+// Setup Firebase
 let serviceAccount;
-
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-  // If running on Render (Cloud), parse the internal JSON string
   serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 } else {
-  // If running locally, look for the file
   try {
     serviceAccount = require('./serviceAccountKey.json');
   } catch (error) {
-    console.error("❌ Error: serviceAccountKey.json not found. Please ensure it is in the server folder.");
+    console.error("❌ Error: serviceAccountKey.json missing.");
     process.exit(1);
   }
 }
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
-
+admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -31,46 +25,42 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Health Check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'Online', timestamp: new Date() });
-});
+// --- NEW: LOGGING SYSTEM ---
+const logEvent = async (message, type = 'info') => {
+  try {
+    await db.collection('logs').add({
+      message,
+      type, // 'info', 'warning', 'error', 'success'
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (error) {
+    console.error("Logging failed:", error);
+  }
+};
+
+app.get('/api/health', (req, res) => res.json({ status: 'Online' }));
 
 // --- REAL DATA ENGINE ---
-
-// Helper: Fetch from AviationStack
 const fetchRealFlights = async () => {
   try {
     const apiKey = process.env.AVIATION_STACK_KEY;
-    if (!apiKey) {
-      console.error("❌ Error: AVIATION_STACK_KEY is missing in .env");
-      return;
-    }
+    if (!apiKey) return console.error("❌ AVIATION_STACK_KEY missing");
 
-    console.log("🌍 Contacting AviationStack...");
-    
-    // We limit to 5 flights to keep data clean and save API usage
     const response = await axios.get(`http://api.aviationstack.com/v1/flights?access_key=${apiKey}&limit=5`);
     const realFlights = response.data.data;
 
-    if (!realFlights || realFlights.length === 0) {
-      console.log("⚠️ No flights returned from API.");
-      return;
-    }
+    if (!realFlights || realFlights.length === 0) return;
 
-    // Save to Firestore
     const batch = db.batch();
-    
     realFlights.forEach(flight => {
       const flightData = {
         code: flight.flight.iata || flight.flight.icao || 'UNKNOWN',
-        airline: flight.airline.name || 'Unknown Airline',
-        destination: flight.arrival.airport || 'Unknown Destination',
+        airline: flight.airline.name || 'Unknown',
+        destination: flight.arrival.airport || 'Unknown',
         status: flight.flight_status ? (flight.flight_status.charAt(0).toUpperCase() + flight.flight_status.slice(1)) : 'Scheduled',
         gate: flight.departure.gate || 'TBD',
         updatedAt: new Date().toISOString()
       };
-
       if (flightData.code !== 'UNKNOWN') {
         const docRef = db.collection('flights').doc(flightData.code);
         batch.set(docRef, flightData);
@@ -78,49 +68,41 @@ const fetchRealFlights = async () => {
     });
 
     await batch.commit();
-    console.log(`✅ Synced ${realFlights.length} real flights from AviationStack`);
+    // LOG IT
+    await logEvent(`Synced ${realFlights.length} flights from Global API`, 'info');
+    console.log(`✅ Synced ${realFlights.length} real flights`);
 
   } catch (error) {
-    console.error("❌ API Error:", error.message);
+    await logEvent(`API Sync Failed: ${error.message}`, 'error');
   }
 };
 
-// Route to manually trigger data refresh
 app.post('/api/refresh-flights', async (req, res) => {
   await fetchRealFlights();
-  res.json({ message: "Real data synced successfully" });
+  res.json({ message: "Sync complete" });
 });
 
-// --- NEW ADMIN ROUTE ---
-// Route to Add a Single Flight Manually
+// --- ADMIN ROUTE ---
 app.post('/api/flights', async (req, res) => {
   try {
     const flightData = req.body;
-    
-    // Basic Validation
     if (!flightData.code || !flightData.destination) {
-      return res.status(400).json({ error: "Missing required fields" });
+      return res.status(400).json({ error: "Missing fields" });
     }
 
-    // Add timestamp
-    const newFlight = {
-      ...flightData,
-      updatedAt: new Date().toISOString()
-    };
-
-    // Save to Firestore (using flight code as ID)
+    const newFlight = { ...flightData, updatedAt: new Date().toISOString() };
     await db.collection('flights').doc(newFlight.code).set(newFlight);
     
-    console.log(`📝 Admin added flight: ${newFlight.code}`);
-    res.json({ message: "Flight added successfully", flight: newFlight });
-
+    // LOG IT
+    await logEvent(`Flight ${newFlight.code} to ${newFlight.destination} added manually`, 'success');
+    
+    res.json({ message: "Flight added", flight: newFlight });
   } catch (error) {
-    console.error("Error adding flight:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    await logEvent(`Failed to add flight: ${error.message}`, 'error');
+    res.status(500).json({ error: "Server Error" });
   }
 });
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log('📡 Real-Data Flight Engine Active. waiting for requests...');
 });
