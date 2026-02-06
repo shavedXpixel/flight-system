@@ -1,30 +1,25 @@
-import { useState, useEffect } from 'react'
+import FlightBoard from './components/FlightBoard';
 
 function App() {
-  const [serverStatus, setServerStatus] = useState('Checking...');
-
-  useEffect(() => {
-    // Check if backend is reachable
-    fetch('http://localhost:5000/api/health')
-      .then(res => res.json())
-      .then(data => setServerStatus(data.status))
-      .catch(() => setServerStatus('Offline'));
-  }, []);
-
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial' }}>
-      <h1>✈️ Flight Management System</h1>
-      <div style={{ 
-        padding: '10px', 
-        backgroundColor: serverStatus === 'Online' ? '#d4edda' : '#f8d7da',
-        color: serverStatus === 'Online' ? '#155724' : '#721c24',
-        border: '1px solid currentColor',
-        borderRadius: '4px'
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: '#0f172a', // Dark Navy Background
+      padding: '40px',
+      fontFamily: "'Courier New', Courier, monospace" // Airport board vibe
+    }}>
+      <h1 style={{ 
+        textAlign: 'center', 
+        color: 'white', 
+        marginBottom: '40px',
+        letterSpacing: '2px'
       }}>
-        <strong>System Status:</strong> {serverStatus}
-      </div>
+        ✈️ FLIGHT MANAGEMENT SYSTEM
+      </h1>
+      
+      <FlightBoard />
     </div>
   )
 }
 
-export default App
+export default App;
