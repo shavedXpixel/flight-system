@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
-const axios = require('axios'); // NEW: For making API calls
+const axios = require('axios'); 
 require('dotenv').config();
 
 // 1. Setup Firebase Admin (Cloud Compatible)
@@ -62,19 +62,15 @@ const fetchRealFlights = async () => {
     const batch = db.batch();
     
     realFlights.forEach(flight => {
-      // Create a clean object (handle missing data)
-      // Note: AviationStack structure is complex, we extract what we need
       const flightData = {
         code: flight.flight.iata || flight.flight.icao || 'UNKNOWN',
         airline: flight.airline.name || 'Unknown Airline',
         destination: flight.arrival.airport || 'Unknown Destination',
-        // Simple status capitalization
         status: flight.flight_status ? (flight.flight_status.charAt(0).toUpperCase() + flight.flight_status.slice(1)) : 'Scheduled',
         gate: flight.departure.gate || 'TBD',
         updatedAt: new Date().toISOString()
       };
 
-      // Use flight code as ID so we don't duplicate
       if (flightData.code !== 'UNKNOWN') {
         const docRef = db.collection('flights').doc(flightData.code);
         batch.set(docRef, flightData);
@@ -93,6 +89,35 @@ const fetchRealFlights = async () => {
 app.post('/api/refresh-flights', async (req, res) => {
   await fetchRealFlights();
   res.json({ message: "Real data synced successfully" });
+});
+
+// --- NEW ADMIN ROUTE ---
+// Route to Add a Single Flight Manually
+app.post('/api/flights', async (req, res) => {
+  try {
+    const flightData = req.body;
+    
+    // Basic Validation
+    if (!flightData.code || !flightData.destination) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Add timestamp
+    const newFlight = {
+      ...flightData,
+      updatedAt: new Date().toISOString()
+    };
+
+    // Save to Firestore (using flight code as ID)
+    await db.collection('flights').doc(newFlight.code).set(newFlight);
+    
+    console.log(`📝 Admin added flight: ${newFlight.code}`);
+    res.json({ message: "Flight added successfully", flight: newFlight });
+
+  } catch (error) {
+    console.error("Error adding flight:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
 app.listen(PORT, () => {
