@@ -1,9 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
+const axios = require('axios'); // NEW: For making API calls
 require('dotenv').config();
 
-// --- UPDATE START ---
 // 1. Setup Firebase Admin (Cloud Compatible)
 let serviceAccount;
 
@@ -12,13 +12,17 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 } else {
   // If running locally, look for the file
-  serviceAccount = require('./serviceAccountKey.json');
+  try {
+    serviceAccount = require('./serviceAccountKey.json');
+  } catch (error) {
+    console.error("❌ Error: serviceAccountKey.json not found. Please ensure it is in the server folder.");
+    process.exit(1);
+  }
 }
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
-// --- UPDATE END ---
 
 const db = admin.firestore();
 const app = express();
@@ -32,32 +36,66 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'Online', timestamp: new Date() });
 });
 
-// FLIGHT SIMULATION ENGINE
-const STATUS_OPTIONS = ['On Time', 'Delayed', 'Boarding', 'Departed', 'Cancelled'];
+// --- REAL DATA ENGINE ---
 
-const simulateAirport = async () => {
+// Helper: Fetch from AviationStack
+const fetchRealFlights = async () => {
   try {
-    const snapshot = await db.collection('flights').get();
-    if (snapshot.empty) return;
+    const apiKey = process.env.AVIATION_STACK_KEY;
+    if (!apiKey) {
+      console.error("❌ Error: AVIATION_STACK_KEY is missing in .env");
+      return;
+    }
 
-    const flights = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    const randomFlight = flights[Math.floor(Math.random() * flights.length)];
-    const newStatus = STATUS_OPTIONS[Math.floor(Math.random() * STATUS_OPTIONS.length)];
+    console.log("🌍 Contacting AviationStack...");
+    
+    // We limit to 5 flights to keep data clean and save API usage
+    const response = await axios.get(`http://api.aviationstack.com/v1/flights?access_key=${apiKey}&limit=5`);
+    const realFlights = response.data.data;
 
-    console.log(`✈️ UPDATE: Flight ${randomFlight.code} is now ${newStatus}`);
+    if (!realFlights || realFlights.length === 0) {
+      console.log("⚠️ No flights returned from API.");
+      return;
+    }
 
-    await db.collection('flights').doc(randomFlight.id).update({
-      status: newStatus
+    // Save to Firestore
+    const batch = db.batch();
+    
+    realFlights.forEach(flight => {
+      // Create a clean object (handle missing data)
+      // Note: AviationStack structure is complex, we extract what we need
+      const flightData = {
+        code: flight.flight.iata || flight.flight.icao || 'UNKNOWN',
+        airline: flight.airline.name || 'Unknown Airline',
+        destination: flight.arrival.airport || 'Unknown Destination',
+        // Simple status capitalization
+        status: flight.flight_status ? (flight.flight_status.charAt(0).toUpperCase() + flight.flight_status.slice(1)) : 'Scheduled',
+        gate: flight.departure.gate || 'TBD',
+        updatedAt: new Date().toISOString()
+      };
+
+      // Use flight code as ID so we don't duplicate
+      if (flightData.code !== 'UNKNOWN') {
+        const docRef = db.collection('flights').doc(flightData.code);
+        batch.set(docRef, flightData);
+      }
     });
 
+    await batch.commit();
+    console.log(`✅ Synced ${realFlights.length} real flights from AviationStack`);
+
   } catch (error) {
-    console.error("Simulation Error:", error);
+    console.error("❌ API Error:", error.message);
   }
 };
 
-setInterval(simulateAirport, 5000);
+// Route to manually trigger data refresh
+app.post('/api/refresh-flights', async (req, res) => {
+  await fetchRealFlights();
+  res.json({ message: "Real data synced successfully" });
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log('🤖 Airport Simulation Tower Active...');
+  console.log('📡 Real-Data Flight Engine Active. waiting for requests...');
 });
