@@ -25,7 +25,18 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// --- NEW: LOGGING SYSTEM ---
+// --- NEW: ROOT WELCOME ROUTE (Fixes "Cannot GET /") ---
+app.get('/', (req, res) => {
+  res.send(`
+    <div style="font-family: monospace; background: #050505; color: #00f2ff; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+      <h1>✈️ SKY LINK SERVER</h1>
+      <p>System Status: <span style="color: #00ff00;">ONLINE</span></p>
+      <p>Listening for Client Connections...</p>
+    </div>
+  `);
+});
+
+// --- LOGGING SYSTEM ---
 const logEvent = async (message, type = 'info') => {
   try {
     await db.collection('logs').add({
