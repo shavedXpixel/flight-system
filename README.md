@@ -5,7 +5,7 @@
 
 **Sky Link** is a real-time flight telemetry dashboard that mimics a futuristic airport control tower. It uses a decoupled architecture to push instant flight status updates to all connected users without refreshing the page.
 
-🔗 **[Live Demo](https://flight-system-details.netlify.app/)**
+🔗 **[Live Demo](https://flight-system-sandy.vercel.app/)**
 
 ---
 
